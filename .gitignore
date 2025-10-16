@@ -1,0 +1,7 @@
+enayat_venv/
+__pycache__/
+*.pyc
+.env
+.vscode/
+*.log
+.DS_Store

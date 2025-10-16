@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Language Detector AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { 
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        .spinner {
+            border: 3px solid rgba(255,255,255,0.3);
+            width: 20px; height: 20px;
+            border-radius: 50%;
+            border-left-color: #ffffff;
+            animation: spin 1s ease infinite;
+        }
+        @keyframes spin { 
+            0% { transform: rotate(0deg); } 
+            100% { transform: rotate(360deg); } 
+        }
+        .gradient-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .gradient-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+        }
+        .gradient-btn:active {
+            transform: translateY(0);
+        }
+        .history-item {
+            animation: slideIn 0.3s ease-out;
+        }
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+        
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s, visibility 0.3s;
+        }
+        .modal-overlay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+        .modal-content {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            max-width: 450px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            transform: scale(0.9);
+            transition: transform 0.3s;
+        }
+        .modal-overlay.show .modal-content {
+            transform: scale(1);
+        }
+        .modal-success {
+            border-top: 5px solid #10b981;
+        }
+        .modal-warning {
+            border-top: 5px solid #f59e0b;
+        }
+        .modal-error {
+            border-top: 5px solid #ef4444;
+        }
+    </style>
+</head>
+<body class="min-h-screen py-8 px-4">
+    <div class="max-w-6xl mx-auto">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-5xl font-bold text-white mb-3 drop-shadow-lg">🌍 Language Detector AI</h1>
+            <p class="text-white text-lg opacity-90">Powered by Machine Learning • Detect 17 Languages Instantly</p>
+        </div>
+
+        <div class="grid md:grid-cols-3 gap-6">
+            <!-- Main Detector Card -->
+            <div class="md:col-span-2 glass-card rounded-2xl shadow-2xl p-8">
+                <div class="mb-6">
+                    <label class="block text-gray-700 font-semibold mb-3 text-lg">Enter Your Text</label>
+                    <textarea 
+                        id="text-input" 
+                        rows="6" 
+                        class="w-full p-4 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-purple-300 focus:border-transparent transition-all resize-none"
+                        placeholder="Type or paste any text here... (e.g., 'Bonjour le monde', 'Hola mundo', '你好世界')"
+                    ></textarea>
+                </div>
+
+                <div class="flex gap-3">
+                    <button id="predict-btn" class="gradient-btn flex-1 text-white font-semibold py-4 px-6 rounded-xl flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed">
+                        <div id="spinner" class="spinner hidden"></div>
+                        <span id="btn-text">🔍 Detect Language</span>
+                    </button>
+                    <button id="clear-btn" class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold py-4 px-6 rounded-xl transition-colors">
+                        Clear
+                    </button>
+                </div>
+
+                <!-- Result Display -->
+                <div id="result-container" class="mt-6 p-6 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border-2 border-green-200 hidden">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-gray-600 text-sm font-medium mb-1">Detected Language:</p>
+                            <p id="result-text" class="text-3xl font-bold text-green-700"></p>
+                        </div>
+                        <div class="text-5xl">🎯</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Popup -->
+            <div id="modal-overlay" class="modal-overlay">
+                <div id="modal-content" class="modal-content">
+                    <div class="text-center mb-4">
+                        <div id="modal-icon" class="text-6xl mb-3"></div>
+                        <h3 id="modal-title" class="text-2xl font-bold mb-2"></h3>
+                        <p id="modal-message" class="text-gray-600 text-lg"></p>
+                    </div>
+                    <button id="modal-close-btn" class="w-full gradient-btn text-white font-semibold py-3 px-6 rounded-xl mt-4">
+                        Got it!
+                    </button>
+                </div>
+            </div>
+
+            <!-- History Sidebar -->
+            <div class="glass-card rounded-2xl shadow-2xl p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-xl font-bold text-gray-800">📜 History</h2>
+                    <button id="clear-history-btn" class="text-sm text-red-600 hover:text-red-700 font-medium">Clear All</button>
+                </div>
+                <div id="history-list" class="space-y-3 max-h-96 overflow-y-auto">
+                    <p class="text-gray-400 text-center text-sm py-8">No history yet</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stats Cards -->
+        <div class="grid md:grid-cols-3 gap-4 mt-6">
+            <div class="glass-card rounded-xl p-5 text-center">
+                <div class="text-3xl mb-2">⚡</div>
+                <div class="text-2xl font-bold text-purple-600" id="total-predictions">0</div>
+                <div class="text-sm text-gray-600">Total Predictions</div>
+            </div>
+            <div class="glass-card rounded-xl p-5 text-center">
+                <div class="text-3xl mb-2">🎯</div>
+                <div class="text-2xl font-bold text-purple-600" id="most-detected">-</div>
+                <div class="text-sm text-gray-600">Most Detected</div>
+            </div>
+            <div class="glass-card rounded-xl p-5 text-center">
+                <div class="text-3xl mb-2">🌐</div>
+                <div class="text-2xl font-bold text-purple-600" id="unique-languages">0</div>
+                <div class="text-sm text-gray-600">Unique Languages</div>
+            </div>
+        </div>
+
+        <!-- Supported Languages Card -->
+        <div class="glass-card rounded-2xl shadow-2xl p-8 mt-6">
+            <div class="text-center mb-6">
+                <h2 class="text-2xl font-bold text-gray-800 mb-2">🌏 Supported Languages</h2>
+                <p class="text-gray-600">Our AI model can accurately detect the following 17 languages:</p>
+            </div>
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                <div class="flex items-center gap-2 bg-white p-3 rounded-lg shadow-sm hover:shadow-md transition-shadow">
+                    <span class="text-2xl">🇬🇧</span>
+                    <span class="font-medium text-gray-700">English</span>
+                </div>
+                <div class="flex items-center gap-2 bg-white p-3 rounded-lg shadow-sm hover:shadow-md transition-shadow">
+                    <span class="text-2xl">🇮🇳</span>
+                    <span class="font-medium text-gray-700">Malayalam</span>
+                </div>
+                <div class="flex items-center gap-2 bg-white p-3 rounded-lg shadow-sm hover:shadow-md transition-shadow">
+                    <span class="text-2xl">🇮🇳</span>
+                    <span class="font-medium text-gray-700">Hindi</span>
+                </div>
+                <div class="flex items-center gap-2 bg-white p-3 rounded-lg shadow-sm hover:shadow-md transition-shadow">
+                    <span class="text-2xl">🇮🇳</span>
+                    <span class="font-medium text-gray-700">Tamil</span>
+                </div>
+                <div class="flex items-center gap-2 bg-white p-3 rounded-lg shadow-sm hover:shadow-md transition-shadow">
+                    <span class="text-2xl">🇮🇳</span>
+                    <span class="font-medium text-gray-700">Kannada</span>
+                </div>
+                <div class="flex items-center gap-2 bg-white p-3 rounded-lg shadow-sm hover:shadow-md transition-shadow">
+                    <span class="text-2xl">🇫🇷</span>
+                    <span class="font-medium text-gray-700">French</span>
+                </div>
+                <div class="flex items-center gap-2 bg-white p-3 rounded-lg shadow-sm hover:shadow-md transition-shadow">
+                    <span class="text-2xl">🇪🇸</span>
+                    <span class="font-medium text-gray-700">Spanish</span>
+                </div>
+                <div class="flex items-center gap-2 bg-white p-3 rounded-lg shadow-sm hover:shadow-md transition-shadow">
+                    <span class="text-2xl">🇵🇹</span>
+                    <span class="font-medium text-gray-700">Portuguese</span>
+                </div>
+                <div class="flex items-center gap-2 bg-white p-3 rounded-lg shadow-sm hover:shadow-md transition-shadow">
+                    <span class="text-2xl">🇮🇹</span>
+                    <span class="font-medium text-gray-700">Italian</span>
+                </div>
+                <div class="flex items-center gap-2 bg-white p-3 rounded-lg shadow-sm hover:shadow-md transition-shadow">
+                    <span class="text-2xl">🇷🇺</span>
+                    <span class="font-medium text-gray-700">Russian</span>
+                </div>
+                <div class="flex items-center gap-2 bg-white p-3 rounded-lg shadow-sm hover:shadow-md transition-shadow">
+                    <span class="text-2xl">🇸🇪</span>
+                    <span class="font-medium text-gray-700">Swedish</span>
+                </div>
+                <div class="flex items-center gap-2 bg-white p-3 rounded-lg shadow-sm hover:shadow-md transition-shadow">
+                    <span class="text-2xl">🇳🇱</span>
+                    <span class="font-medium text-gray-700">Dutch</span>
+                </div>
+                <div class="flex items-center gap-2 bg-white p-3 rounded-lg shadow-sm hover:shadow-md transition-shadow">
+                    <span class="text-2xl">🇸🇦</span>
+                    <span class="font-medium text-gray-700">Arabic</span>
+                </div>
+                <div class="flex items-center gap-2 bg-white p-3 rounded-lg shadow-sm hover:shadow-md transition-shadow">
+                    <span class="text-2xl">🇹🇷</span>
+                    <span class="font-medium text-gray-700">Turkish</span>
+                </div>
+                <div class="flex items-center gap-2 bg-white p-3 rounded-lg shadow-sm hover:shadow-md transition-shadow">
+                    <span class="text-2xl">🇩🇪</span>
+                    <span class="font-medium text-gray-700">German</span>
+                </div>
+                <div class="flex items-center gap-2 bg-white p-3 rounded-lg shadow-sm hover:shadow-md transition-shadow">
+                    <span class="text-2xl">🇩🇰</span>
+                    <span class="font-medium text-gray-700">Danish</span>
+                </div>
+                <div class="flex items-center gap-2 bg-white p-3 rounded-lg shadow-sm hover:shadow-md transition-shadow">
+                    <span class="text-2xl">🇬🇷</span>
+                    <span class="font-medium text-gray-700">Greek</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="mt-8 text-center">
+            <div class="glass-card rounded-xl p-6 inline-block">
+                <p class="text-gray-700 font-medium mb-2">© 2025 Language Detector AI</p>
+                <p class="text-gray-600 text-sm">
+                    Developed with ❤️ by <span class="font-bold text-purple-700">Md Enaytullah</span>
+                </p>
+                <p class="text-gray-500 text-xs mt-2">All Rights Reserved</p>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        const textInput = document.getElementById('text-input');
+        const predictBtn = document.getElementById('predict-btn');
+        const clearBtn = document.getElementById('clear-btn');
+        const resultContainer = document.getElementById('result-container');
+        const resultText = document.getElementById('result-text');
+        const spinner = document.getElementById('spinner');
+        const btnText = document.getElementById('btn-text');
+        const historyList = document.getElementById('history-list');
+        const clearHistoryBtn = document.getElementById('clear-history-btn');
+        const totalPredictions = document.getElementById('total-predictions');
+        const mostDetected = document.getElementById('most-detected');
+        const uniqueLanguages = document.getElementById('unique-languages');
+        
+        // Modal elements
+        const modalOverlay = document.getElementById('modal-overlay');
+        const modalContent = document.getElementById('modal-content');
+        const modalIcon = document.getElementById('modal-icon');
+        const modalTitle = document.getElementById('modal-title');
+        const modalMessage = document.getElementById('modal-message');
+        const modalCloseBtn = document.getElementById('modal-close-btn');
+
+        let historyData = [];
+
+        // Modal function
+        function showModal(type, title, message) {
+            modalContent.className = 'modal-content modal-' + type;
+            
+            if (type === 'success') {
+                modalIcon.textContent = '🎉';
+            } else if (type === 'warning') {
+                modalIcon.textContent = '⚠️';
+            } else if (type === 'error') {
+                modalIcon.textContent = '❌';
+            }
+            
+            modalTitle.textContent = title;
+            modalMessage.textContent = message;
+            modalOverlay.classList.add('show');
+        }
+
+        function hideModal() {
+            modalOverlay.classList.remove('show');
+        }
+
+        modalCloseBtn.addEventListener('click', hideModal);
+        modalOverlay.addEventListener('click', (e) => {
+            if (e.target === modalOverlay) {
+                hideModal();
+            }
+        });
+
+        // Language flag mapping
+        const languageFlags = {
+            'English': '🇬🇧', 'Malayalam': '��', 'Hindi': '��', 'Tamil': '��',
+            'Kannada': '🇮�', 'French': '��', 'Spanish': '��', 'Portuguese': '��',
+            'Italian': '��', 'Russian': '��', 'Swedish': '��', 'Dutch': '��',
+            'Arabic': '��', 'Turkish': '🇹🇷', 'German': '��', 'Danish': '��',
+            'Greek': '🇬🇷'
+        };
+
+        function getLanguageFlag(lang) {
+            return languageFlags[lang] || '🌐';
+        }
+
+        function updateStats() {
+            totalPredictions.textContent = historyData.length;
+            
+            if (historyData.length > 0) {
+                const langCounts = {};
+                historyData.forEach(item => {
+                    langCounts[item.prediction] = (langCounts[item.prediction] || 0) + 1;
+                });
+                
+                const mostCommon = Object.entries(langCounts).sort((a, b) => b[1] - a[1])[0];
+                mostDetected.textContent = mostCommon ? mostCommon[0] : '-';
+                uniqueLanguages.textContent = Object.keys(langCounts).length;
+            } else {
+                mostDetected.textContent = '-';
+                uniqueLanguages.textContent = '0';
+            }
+        }
+
+        function renderHistory() {
+            if (historyData.length === 0) {
+                historyList.innerHTML = '<p class="text-gray-400 text-center text-sm py-8">No history yet</p>';
+            } else {
+                historyList.innerHTML = historyData.map(item => `
+                    <div class="history-item bg-white rounded-lg p-3 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+                        <div class="flex items-start gap-2">
+                            <div class="text-2xl">${getLanguageFlag(item.prediction)}</div>
+                            <div class="flex-1 min-w-0">
+                                <div class="font-semibold text-purple-700 text-sm mb-1">${item.prediction}</div>
+                                <div class="text-xs text-gray-600 truncate mb-1">"${item.text}"</div>
+                                <div class="text-xs text-gray-400">${item.timestamp}</div>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+            updateStats();
+        }
+
+        async function loadHistory() {
+            try {
+                const response = await fetch('/history');
+                const data = await response.json();
+                historyData = data.history || [];
+                renderHistory();
+            } catch (error) {
+                console.error('Error loading history:', error);
+            }
+        }
+
+        predictBtn.addEventListener('click', async () => {
+            const text = textInput.value.trim();
+            if (!text) { 
+                showModal('warning', 'Empty Input!', 'Please enter some text to analyze before detecting the language.');
+                return; 
+            }
+
+            spinner.classList.remove('hidden');
+            btnText.textContent = 'Analyzing...';
+            predictBtn.disabled = true;
+            resultContainer.classList.add('hidden');
+
+            try {
+                const response = await fetch('/predict', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ text: text }),
+                });
+                
+                // Check if response is ok
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({ error: 'Server error' }));
+                    showModal('error', 'Server Error!', errorData.error || 'Failed to process request');
+                    return;
+                }
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    showModal('error', 'Error!', data.error);
+                } else {
+                    const detectedLang = data.prediction;
+                    resultText.textContent = getLanguageFlag(detectedLang) + ' ' + detectedLang;
+                    resultContainer.classList.remove('hidden');
+                    
+                    // Show success modal
+                    showModal('success', 'Language Detected!', `The text is in ${detectedLang}`);
+                    
+                    // Clear input box
+                    textInput.value = '';
+                    
+                    await loadHistory();
+                }
+            } catch (error) {
+                console.error('Prediction error:', error);
+                if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+                    showModal('error', 'Connection Error!', 'Cannot connect to server. Please make sure the server is running and try again.');
+                } else {
+                    showModal('error', 'Network Error!', 'An error occurred while connecting to the server. Please check your connection and try again.');
+                }
+            } finally {
+                spinner.classList.add('hidden');
+                btnText.textContent = '🔍 Detect Language';
+                predictBtn.disabled = false;
+            }
+        });
+
+        clearBtn.addEventListener('click', () => {
+            textInput.value = '';
+            resultContainer.classList.add('hidden');
+            textInput.focus();
+        });
+
+        clearHistoryBtn.addEventListener('click', async () => {
+            if (confirm('Are you sure you want to clear all history?')) {
+                try {
+                    await fetch('/clear-history', { method: 'POST' });
+                    historyData = [];
+                    renderHistory();
+                } catch (error) {
+                    console.error('Error clearing history:', error);
+                }
+            }
+        });
+
+        // Enter key to predict
+        textInput.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.key === 'Enter') {
+                predictBtn.click();
+            }
+        });
+
+        // Load history on page load
+        loadHistory();
+    </script>
+</body>
+</html>
